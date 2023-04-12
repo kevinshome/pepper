@@ -8,6 +8,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.8"
+pywebview = { version = "*", optional = true }
 
 [tool.poetry.group.webview]
 optional = true
@@ -17,6 +18,9 @@ pywebview = "*"
 
 [tool.poetry.scripts]
 pepper = "pepper:main"
+
+[tool.poetry.extras]
+webview = ["pywebview"]
 
 [build-system]
 requires = ["poetry-core"]

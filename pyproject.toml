@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "pepper"
+version = "0.0.0"
+description = "Get information about any PEP (Python Enhancement Proposal)"
+authors = ["Noah Tanner <50159154+kevinshome@users.noreply.github.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+
+[tool.poetry.scripts]
+pepper = "pepper:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

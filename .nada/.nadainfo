@@ -1,0 +1,5 @@
+project_name: "pepper"
+description: "Get information about any PEP (Python Enhancement Proposal)"
+licenses: ["MIT"]
+authors: ["Noah Tanner <50159154+kevinshome@users.noreply.github.com>"]
+repository_url: "https://github.com/kevinshome/pepper.git"

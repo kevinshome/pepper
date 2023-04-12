@@ -1,0 +1,8 @@
+# This is the ignore file for your project
+# This file should adhere to the gitignore specification (see https://git-scm.com/docs/gitignore#_pattern_format)
+#
+# These paths should be *relative* to either the paths specified in your include file,
+# or if no include file was created, *relative* to your project root
+
+*
+!pepper.py

@@ -130,8 +130,18 @@ class PepFileHeaderParser(HTMLParser):
             self._current_tag = None
             self.parsed_data[self._last_key] = data
         if self._current_tag == "a" and self._last_tag == "dd":
-            self._list_head = True
             self._current_tag = None
+            if data == "Discourse thread":
+                for attr,value in self._current_attrs:
+                    if attr == "href":
+                        self.parsed_data[self._last_key] = value
+                        return
+            if data == "Discourse message":
+                for attr,value in self._current_attrs:
+                    if attr == "href":
+                        self.parsed_data[self._last_key] = value
+                        return
+            self._list_head = True
             self.parsed_data[self._last_key] = []
         if self._list_head:
             if data == ",\n" or data == "\n":
@@ -149,8 +159,6 @@ class PepFileHeaderParser(HTMLParser):
         head_parser = cls()
         head_parser.feed(decoded_data)
         head_parser.parsed_data["Author"] = head_parser.parsed_data["Author"].split(', ')
-        head_parser.parsed_data.pop("Discussions-To", None)
-        head_parser.parsed_data.pop("Resolution", None)
         full_parsed_data["raw_title"] = head_parser.parsed_data.pop("raw_title")
         full_parsed_data["title"] = head_parser.parsed_data.pop("title")
         full_parsed_data["number"] = head_parser.parsed_data.pop("number")

@@ -10,20 +10,20 @@ PEP_URL_BASE = "https://peps.python.org/pep-"
 PEP_0_URL = "https://peps.python.org/pep-0000"
 
 PEP_TYPES = {
-    "Informational": "Non-normative PEP containing background, guidelines or other information relevant to the Python ecosystem",
-    "Process": "Normative PEP describing or proposing a change to a Python community process, workflow or governance",
-    "Standards Track": "Normative PEP with a new feature for Python, implementation change for CPython or interoperability standard for the ecosystem"
+    "Informational": ("I", "Non-normative PEP containing background, guidelines or other information relevant to the Python ecosystem"),
+    "Process": ("P", "Normative PEP describing or proposing a change to a Python community process, workflow or governance"),
+    "Standards Track": ("S", "Normative PEP with a new feature for Python, implementation change for CPython or interoperability standard for the ecosystem")
 }
 PEP_STATUSES = {
-    "Accepted": "Normative proposal accepted for implementation",
-    "Active": "Currently valid informational guidance, or an in-use process",
-    "Deferred": "Inactive draft that may be taken up again at a later time",
-    "Final": "Accepted and implementation complete, or no longer active",
-    "Provisional": "Provisionally accepted but additional feedback needed",
-    "Rejected": "Formally declined and will not be accepted",
-    "Superseded": "Replaced by another succeeding PEP",
-    "Withdrawn": "Removed from consideration by sponsor or authors",
-    "Draft": "Proposal under active discussion and revision"
+    "Accepted": ("A", "Normative proposal accepted for implementation"),
+    "Active": ("A", "Currently valid informational guidance, or an in-use process"),
+    "Deferred": ("D", "Inactive draft that may be taken up again at a later time"),
+    "Final": ("F", "Accepted and implementation complete, or no longer active"),
+    "Provisional": ("P", "Provisionally accepted but additional feedback needed"),
+    "Rejected": ("R", "Formally declined and will not be accepted"),
+    "Superseded": ("S", "Replaced by another succeeding PEP"),
+    "Withdrawn": ("W", "Removed from consideration by sponsor or authors"),
+    "Draft": ("<No Letter>", "Proposal under active discussion and revision")
 }
 
 class PepZeroParser(HTMLParser):
@@ -173,7 +173,7 @@ class Commands:
             "usage: pepper [COMMAND] [ARGS]\n"
             "\n"
             "    info [PEP_NUMBER]: get basic info about the specified PEP\n"
-            "    search [QUERY]: search for a PEP (searches for QUERY as substring in title)\n"
+            "    search [ATTRIBUTE] [QUERY]: search for a PEP (searches for QUERY in ATTRIBUTE)\n"
             "    help: print this help message\n"
         )
         return 0
@@ -206,26 +206,34 @@ class Commands:
                 print(s.strip(','))
         return 0
     
-    def search(_, *query_list):
-
+    def search(_, attribute, *query_list):
+        
         try:
             res: HTTPResponse = urlopen(PEP_0_URL)
         except HTTPError as exc:
             fatal_error(f"Recieved error status code '{exc.status}' from python.org")
 
         parsed_list = PepZeroParser.parse(res.read())
+        if parsed_list[0].get(attribute.lower()) is None:
+            fatal_error(f"Invalid attribute: '{attribute}'")
+
         for query in query_list:
-            print(f"\nResults for query: '{query}'")
+            print(f"\nResults for '{attribute}' query: '{query}'")
             peps = []
             for pep in parsed_list:
-                if query.lower() in pep["title"].lower():
-                    peps.append(format_searched_pep(pep))
+                if attribute == "authors":
+                    if query.lower() in [x.lower() for x in pep[attribute]]:
+                        peps.append(format_searched_pep(pep))
+                else:
+                    if query.lower() in str(pep[attribute]).lower():
+                        peps.append(format_searched_pep(pep))
             if not peps:
                 sys.stderr.write(f"No PEP found matching the following query: '{query}'\n")
                 raise SystemExit(1)
 
-            print(" Type/Status | PEP | Title | Authors")
-            print("------------------------------------\n")
+            print("---------------------------------------")
+            print("| Type/Status | PEP | Title | Authors |")
+            print("---------------------------------------\n")
             for pep in peps:
                 print(pep)
 

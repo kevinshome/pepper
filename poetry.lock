@@ -175,4 +175,4 @@ test = ["pytest (>=6,!=7.0.0,!=7.0.1)", "pytest-cov (>=3.0.0)", "pytest-qt"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "dc65c5f9851fda8bde9983c5d12b76e1298c8b4dab897c270125cb77697e233f"
+content-hash = "25c2971945c419dea55733ed4021386bbda9e99c661f0b6abd036102ef8d6852"

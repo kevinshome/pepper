@@ -9,6 +9,9 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.8"
 
+[tool.poetry.group.webview]
+optional = true
+
 [tool.poetry.group.webview.dependencies]
 pywebview = "*"
 

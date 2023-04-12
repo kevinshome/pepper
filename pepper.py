@@ -1,5 +1,7 @@
 import sys
 import inspect
+import shutil
+from textwrap import TextWrapper
 from urllib.request import urlopen, HTTPError
 from http.client import HTTPResponse
 from html.parser import HTMLParser
@@ -25,6 +27,15 @@ PEP_STATUSES = {
     "Withdrawn": ("W", "Removed from consideration by sponsor or authors"),
     "Draft": ("<No Letter>", "Proposal under active discussion and revision")
 }
+
+class KeyTextWrapper(TextWrapper):
+    def __init__(self, offset_size: int = 0, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.width = shutil.get_terminal_size().columns - offset_size
+        self.subsequent_indent = (' '*offset_size)
+        self.break_long_words = False
+        self.break_on_hyphens = False
+        self.max_lines = 4
 
 class PepZeroParser(HTMLParser):
     def __init__(self) -> None:
@@ -174,8 +185,24 @@ class Commands:
             "\n"
             "    info [PEP_NUMBER]: get basic info about the specified PEP\n"
             "    search [ATTRIBUTE] [QUERY]: search for a PEP (searches for QUERY in ATTRIBUTE)\n"
+            "    keys: print the PEP Types and PEP Status keys, taken from PEP 0\n"
             "    help: print this help message\n"
         )
+        return 0
+
+    def keys(_):
+        sys.stdout.write('\n')
+        print("PEP Types Key")
+        print("------------------")
+        for title, info in PEP_TYPES.items():
+            pad_length = 7+len(title)
+            print(f"{title} ({info[0]}) - {KeyTextWrapper(pad_length).fill(info[1])}")
+        print("PEP Status Key")
+        print("------------------")
+        for title, info in PEP_STATUSES.items():
+            pad_length = 6+len(title)+len(info[0])
+            print(f"{title} ({info[0]}) - {KeyTextWrapper(pad_length).fill(info[1])}")
+        sys.stdout.write('\n')
         return 0
 
     def info(_, pep_id: str):
@@ -229,7 +256,7 @@ class Commands:
                         peps.append(format_searched_pep(pep))
             if not peps:
                 sys.stderr.write(f"No PEP found matching the following query: '{query}'\n")
-                raise SystemExit(1)
+                return 1
 
             print("---------------------------------------")
             print("| Type/Status | PEP | Title | Authors |")
@@ -238,6 +265,7 @@ class Commands:
                 print(pep)
 
         sys.stdout.write('\n')
+        return 0
 
     def run_cmd(self, cmd, args):
         members = inspect.getmembers(self, predicate=inspect.ismethod)
@@ -245,7 +273,7 @@ class Commands:
         for name, ref in members:
             if cmd == name:
                 func = ref
-        if func is None:
+        if func is None or func.__name__ == "run_cmd":
             fatal_error(f"No such command ({cmd})...")
         
         param_count = len(inspect.signature(func).parameters)

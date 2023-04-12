@@ -187,7 +187,8 @@ class Commands:
             fatal_error(f"Recieved error status code '{exc.status}' from python.org")
 
         parsed_pep = PepFileHeaderParser.parse(res.read())
-        print(parsed_pep["raw_title"], end='\n\n')
+        print(parsed_pep["raw_title"])
+        print(f"({PEP_URL_BASE + pep_id.zfill(4)})", end='\n\n')
         for item in parsed_pep["header"].items():
             print('\t', end='')
             if not isinstance(item[1], list):

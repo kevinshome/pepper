@@ -223,7 +223,7 @@ class Commands:
                 sys.stderr.write(f"No PEP found matching the following query: '{query}'\n")
                 raise SystemExit(1)
 
-            print(" Status/Type | PEP | Title | Authors")
+            print(" Type/Status | PEP | Title | Authors")
             print("------------------------------------\n")
             for pep in peps:
                 print(pep)

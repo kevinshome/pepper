@@ -184,7 +184,7 @@ class Commands:
             "usage: pepper [COMMAND] [ARGS]\n"
             "\n"
             "    info [PEP_NUMBER]: get basic info about the specified PEP\n"
-            "    search [ATTRIBUTE] [QUERY]: search for a PEP (searches for QUERY in ATTRIBUTE)\n"
+            "    search [ATTR] [QUERY]: search for a PEP (searches for QUERY in ATTR)\n"
             "    keys: print the PEP Types and PEP Status keys, taken from PEP 0\n"
             "    help: print this help message\n"
         )

@@ -1,6 +1,8 @@
+import os
 import sys
 import inspect
 import shutil
+import multiprocessing
 from textwrap import TextWrapper
 from urllib.request import urlopen, HTTPError
 from http.client import HTTPResponse
@@ -10,6 +12,11 @@ __version__ = "0.0.0"
 RAW_PEP_URL_BASE = "https://raw.githubusercontent.com/python/peps/main/pep-"
 PEP_URL_BASE = "https://peps.python.org/pep-"
 PEP_0_URL = "https://peps.python.org/pep-0000"
+
+try:
+    WEBVIEW = __import__("webview")
+except ModuleNotFoundError:
+    WEBVIEW = None
 
 PEP_TYPES = {
     "Informational": ("I", "Non-normative PEP containing background, guidelines or other information relevant to the Python ecosystem"),
@@ -183,6 +190,15 @@ def format_searched_pep(pep_obj: dict) -> str:
 
     return _string
 
+def _view_helper(pep_id, url):
+    WEBVIEW.create_window(
+        f'PEP {pep_id}', 
+        url, 
+        height=800, 
+        frameless=True
+    )
+    WEBVIEW.start()
+
 class Commands:
     def help(_):
         sys.stderr.write(
@@ -194,9 +210,28 @@ class Commands:
             "    info [PEP_NUMBER]: get basic info about the specified PEP\n"
             "    search [ATTR] [QUERY]: search for a PEP (searches for QUERY in ATTR)\n"
             "    keys: print the PEP Types and PEP Status keys, taken from PEP 0\n"
+            "    view [PEP_NUMBER]: view PEP in webview window (requires webview extra)\n"
             "    help: print this help message\n"
         )
         return 0
+
+    def view(_, pep_id: str):
+        pep_url = PEP_URL_BASE + pep_id.zfill(4)
+        if WEBVIEW is None:
+            fatal_error("This command requires the `webview` extra to be installed...")
+
+        # assert PEP is valid and site works
+        try:
+            res: HTTPResponse = urlopen(pep_url)
+        except HTTPError as exc:
+            if exc.status == 404:
+                fatal_error(f"PEP {pep_id} not found...")
+            fatal_error(f"Recieved error status code '{exc.status}' from peps.python.org")
+        print(f"Pulling up PEP {pep_id} in a new window...")
+        proc = multiprocessing.Process(target=_view_helper, args=(pep_id, pep_url), daemon=False)
+        proc.start()
+        print(f"PEP {pep_id} loaded ({proc.pid}), Bye!")
+        os._exit(0) # we call os._exit here to ensure the webview stays alive as an orphan, instead of dying along with the parent
 
     def keys(_):
         sys.stdout.write('\n')
@@ -219,7 +254,7 @@ class Commands:
         except HTTPError as exc:
             if exc.status == 404:
                 fatal_error(f"PEP {pep_id} not found...")
-            fatal_error(f"Recieved error status code '{exc.status}' from python.org")
+            fatal_error(f"Recieved error status code '{exc.status}' from peps.python.org")
 
         parsed_pep = PepFileHeaderParser.parse(res.read())
         print(parsed_pep["raw_title"])

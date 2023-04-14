@@ -21,6 +21,7 @@
 #    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #    SOFTWARE.
 
+import re
 import os
 import sys
 import inspect
@@ -365,7 +366,8 @@ class Commands:
                     if query.lower() in [x.lower() for x in pep[attribute]]:
                         peps.append(format_searched_pep(pep))
                 else:
-                    if query.lower() in str(pep[attribute]).lower():
+                    processed_query = query.lower().replace('.', '\.').replace('*', '.+')
+                    if re.search(processed_query, str(pep[attribute]).lower()) is not None:
                         peps.append(format_searched_pep(pep))
             if not peps:
                 sys.stderr.write(

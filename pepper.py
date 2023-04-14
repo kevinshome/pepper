@@ -298,7 +298,10 @@ class Commands:
 
         parsed_list = PepZeroParser.parse(res.read())
         if parsed_list[0].get(attribute.lower()) is None:
-            fatal_error(f"Invalid attribute: '{attribute}'")
+            fatal_error(
+                f"Invalid attribute: '{attribute}'\n"
+                "Valid attributes are: 'title', 'authors', 'type', 'status'"
+            )
 
         for query in query_list:
             print(f"\nResults for '{attribute}' query: '{query}'")

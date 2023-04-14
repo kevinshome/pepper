@@ -33,8 +33,7 @@ from urllib.request import urlopen, HTTPError
 from http.client import HTTPResponse
 from html.parser import HTMLParser
 
-__version__ = "0.1.0"
-RAW_PEP_URL_BASE = "https://raw.githubusercontent.com/python/peps/main/pep-"
+__version__ = "0.1.1"
 PEP_URL_BASE = "https://peps.python.org/pep-"
 PEP_0_URL = "https://peps.python.org/pep-0000"
 

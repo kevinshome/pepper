@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pepper-cli"
-version = "0.1.0"
+version = "0.1.1"
 description = "Get information about any PEP (Python Enhancement Proposal)"
 authors = ["Noah Tanner <50159154+kevinshome@users.noreply.github.com>"]
 license = "MIT"

@@ -2,6 +2,7 @@ import os
 import sys
 import inspect
 import shutil
+import webbrowser
 import multiprocessing
 from textwrap import TextWrapper
 from urllib.request import urlopen, HTTPError
@@ -211,27 +212,39 @@ class Commands:
             "    search [ATTR] [QUERY]: search for a PEP (searches for QUERY in ATTR)\n"
             "    keys: print the PEP Types and PEP Status keys, taken from PEP 0\n"
             "    view [PEP_NUMBER]: view PEP in webview window (requires webview extra)\n"
+            "    open [PEP_NUMBER]: open PEP in your default web browser\n"
             "    help: print this help message\n"
         )
         return 0
 
-    def view(_, pep_id: str):
-        pep_url = PEP_URL_BASE + pep_id.zfill(4)
-        if WEBVIEW is None:
-            fatal_error("This command requires the `webview` extra to be installed...")
+    @staticmethod
+    def _get_pep_url(pep_id: str):
+        url = PEP_URL_BASE + pep_id.zfill(4)
 
         # assert PEP is valid and site works
         try:
-            res: HTTPResponse = urlopen(pep_url)
+            urlopen(url)
         except HTTPError as exc:
             if exc.status == 404:
                 fatal_error(f"PEP {pep_id} not found...")
             fatal_error(f"Recieved error status code '{exc.status}' from peps.python.org")
+
+        return url
+
+    def view(self, pep_id: str):
+        pep_url = self._get_pep_url(pep_id)
         print(f"Pulling up PEP {pep_id} in a new window...")
         proc = multiprocessing.Process(target=_view_helper, args=(pep_id, pep_url), daemon=False)
         proc.start()
         print(f"PEP {pep_id} loaded ({proc.pid}), Bye!")
         os._exit(0) # we call os._exit here to ensure the webview stays alive as an orphan, instead of dying along with the parent
+
+    def open(self, pep_id: str):
+        pep_url = self._get_pep_url(pep_id)
+        print(f"Pulling up PEP {pep_id} in your default browser...")
+        webbrowser.open(pep_url, 2)
+        print(f"PEP {pep_id} loaded, Bye!")
+        return 0
 
     def keys(_):
         sys.stdout.write('\n')

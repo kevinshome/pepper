@@ -1,6 +1,6 @@
 [tool.poetry]
-name = "pepper"
-version = "0.0.0"
+name = "pepper-cli"
+version = "0.1.0"
 description = "Get information about any PEP (Python Enhancement Proposal)"
 authors = ["Noah Tanner <50159154+kevinshome@users.noreply.github.com>"]
 license = "MIT"
@@ -17,7 +17,7 @@ optional = true
 pywebview = "*"
 
 [tool.poetry.scripts]
-pepper = "pepper:main"
+pepper = "pepper_cli:main"
 
 [tool.poetry.extras]
 webview = ["pywebview"]

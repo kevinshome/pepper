@@ -9,7 +9,7 @@ from urllib.request import urlopen, HTTPError
 from http.client import HTTPResponse
 from html.parser import HTMLParser
 
-__version__ = "0.0.0"
+__version__ = "0.1.0"
 RAW_PEP_URL_BASE = "https://raw.githubusercontent.com/python/peps/main/pep-"
 PEP_URL_BASE = "https://peps.python.org/pep-"
 PEP_0_URL = "https://peps.python.org/pep-0000"
@@ -233,6 +233,8 @@ class Commands:
 
     def view(self, pep_id: str):
         pep_url = self._get_pep_url(pep_id)
+        if WEBVIEW is None:
+            fatal_error("the 'view' command requires the `webview` extra to be installed.")
         print(f"Pulling up PEP {pep_id} in a new window...")
         proc = multiprocessing.Process(target=_view_helper, args=(pep_id, pep_url), daemon=False)
         proc.start()

@@ -5,4 +5,4 @@
 # or if no include file was created, *relative* to your project root
 
 *
-!pepper.py
+!pepper_cli.py

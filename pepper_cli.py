@@ -72,12 +72,12 @@ PEP_STATUSES = {
     "Draft": ("<No Letter>", "Proposal under active discussion and revision"),
 }
 
+
 def ensure_interactive_mode():
     if not sys.__stdin__.isatty():
-        sys.stderr.write(
-            f"This command must be run in an interactive terminal...\n"
-        )
+        sys.stderr.write(f"This command must be run in an interactive terminal...\n")
         raise SystemExit(1)
+
 
 with suppress(ImportError):
     # this is only set up this way for syntax
@@ -85,6 +85,7 @@ with suppress(ImportError):
     import venv
     import webview
     import bottle
+
 
 def ensure_module(mod: str):
     try:
@@ -94,11 +95,16 @@ def ensure_module(mod: str):
             f"Required module `{mod}` not found! It may need to be installed manually...\n"
         )
 
+
 def _new_proc_spawn(pepper_dir: pathlib.Path):
-    @bottle.route('/<filepath:path>')
+    @bottle.route("/<filepath:path>")
     def serve_pep(filepath):
-        return bottle.static_file(filepath, root=pepper_dir.joinpath("peps", "peps-html").as_posix())
+        return bottle.static_file(
+            filepath, root=pepper_dir.joinpath("peps", "peps-html").as_posix()
+        )
+
     bottle.run(host=BOTTLE_HOST, port=BOTTLE_PORT, quiet=True)
+
 
 def _spawn_pep_server(pepper_dir: pathlib.Path):
     ensure_module("bottle")
@@ -112,7 +118,10 @@ def _spawn_pep_server(pepper_dir: pathlib.Path):
     proc.start()
     pidfile.touch()
     pidfile.write_text(str(proc.pid))
-    print(f"Started new bottle server process ({proc.pid}). Run `pepper kill_server` to stop process.")
+    print(
+        f"Started new bottle server process ({proc.pid}). Run `pepper kill_server` to stop process."
+    )
+
 
 class KeyTextWrapper(TextWrapper):
     def __init__(self, offset_size: int = 0, *args, **kwargs) -> None:
@@ -289,7 +298,6 @@ def _view_helper(pep_id, url):
 
 
 class Commands:
-
     def __init__(self) -> None:
         self.pepper_dir = pathlib.Path.home().joinpath(".pepper")
         self.config = {}
@@ -298,7 +306,12 @@ class Commands:
             return
         config_file = self.pepper_dir.joinpath("pepper.conf")
         if config_file.exists():
-            self.config = dict([tuple(line.split('=')) for line in config_file.read_text().split('\n')][:-1])
+            self.config = dict(
+                [
+                    tuple(line.split("="))
+                    for line in config_file.read_text().split("\n")
+                ][:-1]
+            )
 
     def help(_):
         sys.stderr.write(
@@ -341,7 +354,9 @@ class Commands:
 
     @staticmethod
     def _get_offline_url(pepper_dir: pathlib.Path, pep_id: str):
-        pep_path = pepper_dir.joinpath("peps", "peps-html", f"pep-{pep_id.zfill(4)}.html")
+        pep_path = pepper_dir.joinpath(
+            "peps", "peps-html", f"pep-{pep_id.zfill(4)}.html"
+        )
         if not pep_path.exists():
             fatal_error(f"PEP {pep_id} not found locally...")
         _spawn_pep_server(pepper_dir)
@@ -469,8 +484,13 @@ class Commands:
                     if query.lower() in [x.lower() for x in pep[attribute]]:
                         peps.append(format_searched_pep(pep))
                 else:
-                    processed_query = query.lower().replace('.', '\.').replace('*', '.+')
-                    if re.search(processed_query, str(pep[attribute]).lower()) is not None:
+                    processed_query = (
+                        query.lower().replace(".", "\.").replace("*", ".+")
+                    )
+                    if (
+                        re.search(processed_query, str(pep[attribute]).lower())
+                        is not None
+                    ):
                         peps.append(format_searched_pep(pep))
             if not peps:
                 sys.stderr.write(
@@ -508,10 +528,10 @@ class Commands:
                 "-U",
                 "Pygments >= 2.9.0",
                 "Sphinx >= 5.1.1, != 6.1.0, != 6.1.1",
-                "docutils >= 0.19.0"
+                "docutils >= 0.19.0",
             ],
             stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT
+            stderr=subprocess.STDOUT,
         )
         if install_proc.returncode != 0:
             sys.stderr.write("**ERROR** pip failed with the following output:\n\n")
@@ -522,7 +542,7 @@ class Commands:
         git_proc = subprocess.run(
             ["git", "clone", "--depth=1", "https://github.com/python/peps.git"],
             stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT
+            stderr=subprocess.STDOUT,
         )
         if git_proc.returncode != 0:
             sys.stderr.write("**ERROR** git failed with the following output:\n\n")
@@ -533,60 +553,60 @@ class Commands:
         sys.stdout.write("Building PEPs...\n")
         os.chdir("git-ds")
         build_proc = subprocess.run(
-            [
-                storage_dir.joinpath(".venv", "bin", "python3"),
-                "build.py"
-            ],
+            [storage_dir.joinpath(".venv", "bin", "python3"), "build.py"],
             stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT
+            stderr=subprocess.STDOUT,
         )
         if build_proc.returncode != 0:
             sys.stderr.write("**ERROR** python failed with the following output:\n\n")
             sys.stderr.write(build_proc.stdout.decode())
             raise SystemExit(1)
         if not storage_dir.joinpath("peps-html").exists():
-            os.system(f'ln -sf {storage_dir.joinpath("git-ds", "build")} {storage_dir.joinpath("peps-html")}')
+            os.system(
+                f'ln -sf {storage_dir.joinpath("git-ds", "build")} {storage_dir.joinpath("peps-html")}'
+            )
 
-        sys.stderr.write(f"Finished! All current PEPs have been built in the '{storage_dir.joinpath('peps-html')}' directory!\n")
+        sys.stderr.write(
+            f"Finished! All current PEPs have been built in the '{storage_dir.joinpath('peps-html')}' directory!\n"
+        )
         return 0
 
     def update_offline_docs(self):
         ensure_interactive_mode()
         storage_dir = self.pepper_dir.joinpath("peps")
         if not storage_dir.exists():
-            sys.stderr.write("Local PEP directory not found. Please run `pepper generate_offline_docs` instead...\n")
+            sys.stderr.write(
+                "Local PEP directory not found. Please run `pepper generate_offline_docs` instead...\n"
+            )
             raise SystemExit(1)
 
         sys.stdout.write("Checking for new upstream commits...\n")
         os.chdir(storage_dir.joinpath("git-ds"))
         git_proc = subprocess.run(
-            ["git", "pull"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT
+            ["git", "pull"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT
         )
         if git_proc.returncode != 0:
             sys.stderr.write("**ERROR** git failed with the following output:\n\n")
             sys.stderr.write(git_proc.stdout.decode())
             raise SystemExit(1)
-        if git_proc.stdout == b'Already up to date.\n':
+        if git_proc.stdout == b"Already up to date.\n":
             sys.stdout.write("Local repository up-to-date.\n")
             return 0
 
         sys.stdout.write("Running builder...\n")
         build_proc = subprocess.run(
-            [
-                storage_dir.joinpath(".venv", "bin", "python3"),
-                "build.py"
-            ],
+            [storage_dir.joinpath(".venv", "bin", "python3"), "build.py"],
             stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT
+            stderr=subprocess.STDOUT,
         )
         if build_proc.returncode != 0:
             sys.stderr.write("**ERROR** python failed with the following output:\n\n")
             sys.stderr.write(build_proc.stdout.decode())
             raise SystemExit(1)
 
-        sys.stderr.write(f"Finished! All current PEPs have been built in the '{storage_dir.joinpath('peps-html')}' directory!\n")
+        sys.stderr.write(
+            f"Finished! All current PEPs have been built in the '{storage_dir.joinpath('peps-html')}' directory!\n"
+        )
         return 0
 
     def run_cmd(self, cmd, args):
@@ -610,6 +630,6 @@ def main():
     if len(sys.argv) == 1:
         Commands().help()
         raise SystemExit(1)
-    os.umask(stat.S_IWGRP | stat.S_IWOTH) # ensure umask is 022
+    os.umask(stat.S_IWGRP | stat.S_IWOTH)  # ensure umask is 022
     commands = Commands()
     commands.run_cmd(sys.argv[1], sys.argv[2:])

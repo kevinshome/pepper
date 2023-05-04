@@ -292,8 +292,13 @@ class Commands:
 
     def __init__(self) -> None:
         self.pepper_dir = pathlib.Path.home().joinpath(".pepper")
+        self.config = {}
         if not self.pepper_dir.exists():
             self.pepper_dir.mkdir()
+            return
+        config_file = self.pepper_dir.joinpath("pepper.conf")
+        if config_file.exists():
+            self.config = dict([tuple(line.split('=')) for line in config_file.read_text().split('\n')][:-1])
 
     def help(_):
         sys.stderr.write(
@@ -336,7 +341,6 @@ class Commands:
 
     @staticmethod
     def _get_offline_url(pepper_dir: pathlib.Path, pep_id: str):
-        print("No internet connection detected. Checking for local copy.")
         pep_path = pepper_dir.joinpath("peps", "peps-html", f"pep-{pep_id.zfill(4)}.html")
         if not pep_path.exists():
             fatal_error(f"PEP {pep_id} not found locally...")
@@ -344,11 +348,16 @@ class Commands:
         return f"http://{BOTTLE_HOST}:{BOTTLE_PORT}/pep-{pep_id.zfill(4)}.html"
 
     def view(self, pep_id: str):
-        pep_url = self._get_pep_url(pep_id)
         ensure_module("webview")
 
-        if pep_url is None:
+        if self.config.get("USE_OFFLINE") == "true":
             pep_url = self._get_offline_url(self.pepper_dir, pep_id)
+        else:
+            pep_url = self._get_pep_url(pep_id)
+
+            if pep_url is None:
+                print("No internet connection detected. Checking for local copy.")
+                pep_url = self._get_offline_url(self.pepper_dir, pep_id)
 
         print(f"Pulling up PEP {pep_id} in a new window...")
         proc = multiprocessing.Process(
@@ -361,12 +370,17 @@ class Commands:
         )  # we call os._exit here to ensure the webview stays alive as an orphan, instead of dying along with the parent
 
     def open(self, pep_id: str):
-        MAKE_ORPHAN = False
-        pep_url = self._get_pep_url(pep_id)
-
-        if pep_url is None:
-            pep_url = self._get_offline_url(self.pepper_dir, pep_id)
+        if self.config.get("USE_OFFLINE") == "true":
             MAKE_ORPHAN = True
+            pep_url = self._get_offline_url(self.pepper_dir, pep_id)
+        else:
+            MAKE_ORPHAN = False
+            pep_url = self._get_pep_url(pep_id)
+
+            if pep_url is None:
+                print("No internet connection detected. Checking for local copy.")
+                pep_url = self._get_offline_url(self.pepper_dir, pep_id)
+                MAKE_ORPHAN = True
 
         print(f"Pulling up PEP {pep_id} in your default browser...")
         webbrowser.open(pep_url, 2)

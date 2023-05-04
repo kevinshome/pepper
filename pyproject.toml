@@ -10,6 +10,7 @@ readme = "README.md"
 python = "^3.8"
 pywebview = { version = "*", optional = true }
 black = { version = "*", optional = true }
+bottle = { version = "*", optional = true }
 
 [tool.poetry.group.webview]
 optional = true
@@ -28,6 +29,7 @@ pepper = "pepper_cli:main"
 
 [tool.poetry.extras]
 webview = ["pywebview"]
+offline = ["bottle"]
 dev = ["black"]
 
 [build-system]

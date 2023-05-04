@@ -31,15 +31,20 @@ import webbrowser
 import multiprocessing
 import pathlib
 import subprocess
+import signal
+import time
 from contextlib import suppress
 from textwrap import TextWrapper
 from urllib.request import urlopen, HTTPError
+from urllib.error import URLError
 from http.client import HTTPResponse
 from html.parser import HTMLParser
 
 __version__ = "0.2.0"
 PEP_URL_BASE = "https://peps.python.org/pep-"
 PEP_0_URL = "https://peps.python.org/pep-0000"
+BOTTLE_HOST = "127.0.0.1"
+BOTTLE_PORT = 9090
 
 PEP_TYPES = {
     "Informational": (
@@ -79,6 +84,7 @@ with suppress(ImportError):
     # highlighting purposes. sorry.
     import venv
     import webview
+    import bottle
 
 def ensure_module(mod: str):
     try:
@@ -87,6 +93,26 @@ def ensure_module(mod: str):
         sys.stderr.write(
             f"Required module `{mod}` not found! It may need to be installed manually...\n"
         )
+
+def _new_proc_spawn(pepper_dir: pathlib.Path):
+    @bottle.route('/<filepath:path>')
+    def serve_pep(filepath):
+        return bottle.static_file(filepath, root=pepper_dir.joinpath("peps", "peps-html").as_posix())
+    bottle.run(host=BOTTLE_HOST, port=BOTTLE_PORT, quiet=True)
+
+def _spawn_pep_server(pepper_dir: pathlib.Path):
+    ensure_module("bottle")
+    pidfile = pepper_dir.joinpath("bottle.pid")
+    if pidfile.exists():
+        return
+
+    proc = multiprocessing.Process(
+        target=_new_proc_spawn, daemon=False, args=(pepper_dir,)
+    )
+    proc.start()
+    pidfile.touch()
+    pidfile.write_text(str(proc.pid))
+    print(f"Started new bottle server process ({proc.pid}). Run `pepper kill_server` to stop process.")
 
 class KeyTextWrapper(TextWrapper):
     def __init__(self, offset_size: int = 0, *args, **kwargs) -> None:
@@ -303,12 +329,27 @@ class Commands:
             fatal_error(
                 f"Recieved error status code '{exc.status}' from peps.python.org"
             )
+        except URLError:
+            return None
 
         return url
+
+    @staticmethod
+    def _get_offline_url(pepper_dir: pathlib.Path, pep_id: str):
+        print("No internet connection detected. Checking for local copy.")
+        pep_path = pepper_dir.joinpath("peps", "peps-html", f"pep-{pep_id.zfill(4)}.html")
+        if not pep_path.exists():
+            fatal_error(f"PEP {pep_id} not found locally...")
+        _spawn_pep_server(pepper_dir)
+        return f"http://{BOTTLE_HOST}:{BOTTLE_PORT}/pep-{pep_id.zfill(4)}.html"
 
     def view(self, pep_id: str):
         pep_url = self._get_pep_url(pep_id)
         ensure_module("webview")
+
+        if pep_url is None:
+            pep_url = self._get_offline_url(self.pepper_dir, pep_id)
+
         print(f"Pulling up PEP {pep_id} in a new window...")
         proc = multiprocessing.Process(
             target=_view_helper, args=(pep_id, pep_url), daemon=False
@@ -320,10 +361,32 @@ class Commands:
         )  # we call os._exit here to ensure the webview stays alive as an orphan, instead of dying along with the parent
 
     def open(self, pep_id: str):
+        MAKE_ORPHAN = False
         pep_url = self._get_pep_url(pep_id)
+
+        if pep_url is None:
+            pep_url = self._get_offline_url(self.pepper_dir, pep_id)
+            MAKE_ORPHAN = True
+
         print(f"Pulling up PEP {pep_id} in your default browser...")
         webbrowser.open(pep_url, 2)
         print(f"PEP {pep_id} loaded, Bye!")
+        if MAKE_ORPHAN:
+            os._exit(0)
+        return 0
+
+    def kill_server(self):
+        pidfile = self.pepper_dir.joinpath("bottle.pid")
+        if not pidfile.exists():
+            fatal_error("No running instance of bottle detected...")
+        pid = int(pidfile.read_text())
+        os.kill(pid, signal.SIGTERM)
+        time.sleep(2)
+        with suppress(ProcessLookupError):
+            # if process still exists, use SIGKILL
+            os.kill(pid, signal.SIGKILL)
+        pidfile.unlink()
+        print("Server successfully shut down.")
         return 0
 
     def keys(_):

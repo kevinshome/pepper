@@ -33,7 +33,7 @@ from urllib.request import urlopen, HTTPError
 from http.client import HTTPResponse
 from html.parser import HTMLParser
 
-__version__ = "0.1.1"
+__version__ = "0.2.0"
 PEP_URL_BASE = "https://peps.python.org/pep-"
 PEP_0_URL = "https://peps.python.org/pep-0000"
 
@@ -251,11 +251,16 @@ class Commands:
             "\n"
             "usage: pepper [COMMAND] [ARGS]\n"
             "\n"
+            "[ PEP commands ]\n"
             "    info [PEP_NUMBER]: get basic info about the specified PEP\n"
             "    search [ATTR] [QUERY]: search for a PEP (searches for QUERY in ATTR)\n"
-            "    keys: print the PEP Types and PEP Status keys, taken from PEP 0\n"
             "    view [PEP_NUMBER]: view PEP in webview window (requires webview extra)\n"
             "    open [PEP_NUMBER]: open PEP in your default web browser\n"
+            "\n"
+            "[ pepper meta commands ]\n"
+            "    keys: print the PEP Types and PEP Status keys, taken from PEP 0\n"
+            "    generate_offline_docs: download and build an offline copy of all PEPs\n"
+            "    update_offline_docs: search for, and build, any new PEPs not saved\n"
             "    help: print this help message\n"
         )
         return 0

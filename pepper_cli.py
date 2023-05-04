@@ -24,10 +24,14 @@
 import re
 import os
 import sys
+import stat
 import inspect
 import shutil
 import webbrowser
 import multiprocessing
+import pathlib
+import subprocess
+from contextlib import suppress
 from textwrap import TextWrapper
 from urllib.request import urlopen, HTTPError
 from http.client import HTTPResponse
@@ -36,11 +40,6 @@ from html.parser import HTMLParser
 __version__ = "0.2.0"
 PEP_URL_BASE = "https://peps.python.org/pep-"
 PEP_0_URL = "https://peps.python.org/pep-0000"
-
-try:
-    WEBVIEW = __import__("webview")
-except ModuleNotFoundError:
-    WEBVIEW = None
 
 PEP_TYPES = {
     "Informational": (
@@ -68,6 +67,26 @@ PEP_STATUSES = {
     "Draft": ("<No Letter>", "Proposal under active discussion and revision"),
 }
 
+def ensure_interactive_mode():
+    if not sys.__stdin__.isatty():
+        sys.stderr.write(
+            f"This command must be run in an interactive terminal...\n"
+        )
+        raise SystemExit(1)
+
+with suppress(ImportError):
+    # this is only set up this way for syntax
+    # highlighting purposes. sorry.
+    import venv
+    import webview
+
+def ensure_module(mod: str):
+    try:
+        _ = __import__(mod)
+    except ModuleNotFoundError:
+        sys.stderr.write(
+            f"Required module `{mod}` not found! It may need to be installed manually...\n"
+        )
 
 class KeyTextWrapper(TextWrapper):
     def __init__(self, offset_size: int = 0, *args, **kwargs) -> None:
@@ -239,11 +258,17 @@ def format_searched_pep(pep_obj: dict) -> str:
 
 
 def _view_helper(pep_id, url):
-    WEBVIEW.create_window(f"PEP {pep_id}", url, height=800, frameless=True)
-    WEBVIEW.start()
+    webview.create_window(f"PEP {pep_id}", url, height=800, frameless=True)
+    webview.start()
 
 
 class Commands:
+
+    def __init__(self) -> None:
+        self.pepper_dir = pathlib.Path.home().joinpath(".pepper")
+        if not self.pepper_dir.exists():
+            self.pepper_dir.mkdir()
+
     def help(_):
         sys.stderr.write(
             f"pepper, version {__version__}\n"
@@ -283,10 +308,7 @@ class Commands:
 
     def view(self, pep_id: str):
         pep_url = self._get_pep_url(pep_id)
-        if WEBVIEW is None:
-            fatal_error(
-                "the 'view' command requires the `webview` extra to be installed."
-            )
+        ensure_module("webview")
         print(f"Pulling up PEP {pep_id} in a new window...")
         proc = multiprocessing.Process(
             target=_view_helper, args=(pep_id, pep_url), daemon=False
@@ -388,6 +410,108 @@ class Commands:
         sys.stdout.write("\n")
         return 0
 
+    def generate_offline_docs(self):
+        ensure_interactive_mode()
+        ensure_module("venv")
+        storage_dir = self.pepper_dir.joinpath("peps")
+
+        if not storage_dir.exists():
+            storage_dir.mkdir()
+
+        os.chdir(storage_dir)
+        sys.stdout.write("Generating build environment...\n")
+        builder = venv.EnvBuilder(clear=True, with_pip=True, symlinks=False)
+        builder.ensure_directories(storage_dir.joinpath(".venv"))
+        builder.create(storage_dir.joinpath(".venv"))
+
+        install_proc = subprocess.run(
+            [
+                storage_dir.joinpath(".venv", "bin", "pip"),
+                "install",
+                "-U",
+                "Pygments >= 2.9.0",
+                "Sphinx >= 5.1.1, != 6.1.0, != 6.1.1",
+                "docutils >= 0.19.0"
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT
+        )
+        if install_proc.returncode != 0:
+            sys.stderr.write("**ERROR** pip failed with the following output:\n\n")
+            sys.stderr.write(install_proc.stdout.decode())
+            raise SystemExit(1)
+
+        sys.stdout.write("Downloading PEPs...\n")
+        git_proc = subprocess.run(
+            ["git", "clone", "--depth=1", "https://github.com/python/peps.git"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT
+        )
+        if git_proc.returncode != 0:
+            sys.stderr.write("**ERROR** git failed with the following output:\n\n")
+            sys.stderr.write(git_proc.stdout.decode())
+            raise SystemExit(1)
+        shutil.move("peps", "git-ds")
+
+        sys.stdout.write("Building PEPs...\n")
+        os.chdir("git-ds")
+        build_proc = subprocess.run(
+            [
+                storage_dir.joinpath(".venv", "bin", "python3"),
+                "build.py"
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT
+        )
+        if build_proc.returncode != 0:
+            sys.stderr.write("**ERROR** python failed with the following output:\n\n")
+            sys.stderr.write(build_proc.stdout.decode())
+            raise SystemExit(1)
+        if not storage_dir.joinpath("peps-html").exists():
+            os.system(f'ln -sf {storage_dir.joinpath("git-ds", "build")} {storage_dir.joinpath("peps-html")}')
+
+        sys.stderr.write(f"Finished! All current PEPs have been built in the '{storage_dir.joinpath('peps-html')}' directory!\n")
+        return 0
+
+    def update_offline_docs(self):
+        ensure_interactive_mode()
+        storage_dir = self.pepper_dir.joinpath("peps")
+        if not storage_dir.exists():
+            sys.stderr.write("Local PEP directory not found. Please run `pepper generate_offline_docs` instead...\n")
+            raise SystemExit(1)
+
+        sys.stdout.write("Checking for new upstream commits...\n")
+        os.chdir(storage_dir.joinpath("git-ds"))
+        git_proc = subprocess.run(
+            ["git", "pull"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT
+        )
+        if git_proc.returncode != 0:
+            sys.stderr.write("**ERROR** git failed with the following output:\n\n")
+            sys.stderr.write(git_proc.stdout.decode())
+            raise SystemExit(1)
+        if git_proc.stdout == b'Already up to date.\n':
+            sys.stdout.write("Local repository up-to-date.\n")
+            return 0
+
+        sys.stdout.write("Running builder...\n")
+        build_proc = subprocess.run(
+            [
+                storage_dir.joinpath(".venv", "bin", "python3"),
+                "build.py"
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT
+        )
+        if build_proc.returncode != 0:
+            sys.stderr.write("**ERROR** python failed with the following output:\n\n")
+            sys.stderr.write(build_proc.stdout.decode())
+            raise SystemExit(1)
+
+        sys.stderr.write(f"Finished! All current PEPs have been built in the '{storage_dir.joinpath('peps-html')}' directory!\n")
+        return 0
+
     def run_cmd(self, cmd, args):
         members = inspect.getmembers(self, predicate=inspect.ismethod)
         func = None
@@ -409,5 +533,6 @@ def main():
     if len(sys.argv) == 1:
         Commands().help()
         raise SystemExit(1)
+    os.umask(stat.S_IWGRP | stat.S_IWOTH) # ensure umask is 022
     commands = Commands()
     commands.run_cmd(sys.argv[1], sys.argv[2:])
